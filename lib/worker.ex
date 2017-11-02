@@ -13,16 +13,6 @@ defmodule OtpMetex.Worker do
     GenServer.call(pid, {:location, location})
   end
 
-  def handle_call({:location, location}, _from, stats) do
-    case temperature_of(location) do
-      {:ok, temp} ->
-        new_stats = update_stats(stats, location)
-        {:reply, "#{temp} C", new_stats}
-      _ ->
-        {:reply, :error, stats}
-    end
-  end
-
   defp temperature_of(location) do
     url_for(location) |> HTTPoison.get |> parse_response
   end
@@ -60,6 +50,40 @@ defmodule OtpMetex.Worker do
       false ->
         Map.put_new(old_stats, location, 1)
     end
+  end
+
+  def get_stats(pid) do
+    GenServer.call(pid, :get_stats)
+  end
+
+  def reset_stats(pid) do
+    GenServer.cast(pid, :reset_stats)
+  end
+
+  def stop(pid) do
+    GenServer.cast(pid, :stop)
+  end
+
+  def handle_call({:location, location}, _from, stats) do
+    case temperature_of(location) do
+      {:ok, temp} ->
+        new_stats = update_stats(stats, location)
+        {:reply, "#{temp} C", new_stats}
+      _ ->
+        {:reply, :error, stats}
+    end
+  end
+
+  def handle_call(:get_stats, _from, stats) do
+    {:reply, stats, stats}
+  end
+
+  def handle_cast(:reset_stats, _stats) do
+    {:noreply, %{}}
+  end
+
+  def handle_cast(:stop, stats) do
+    {:stop, :normal, stats}
   end
 
 end
